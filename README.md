@@ -39,13 +39,13 @@
 
 #### 一键交互脚本方式
 
-- **设置swap虚拟内存**
+- **设置swap虚拟内存（可选步骤，建议VPS配置较低的使用）**
+
+⚠️ icmp9.com送的VPS,请务必先设置1G swap虚拟内存,再部署一键脚本
 
 ```bash
 bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/swap.sh)
 ```
-
-⚠️ icmp9.com送的VPS,请务必先设置1G swap虚拟内存,再部署一键脚本
 
 ⚠️ 设置swap成功后需要重启VPS才能生效
 
@@ -165,5 +165,4 @@ curl ip.sb
 - https://github.com/fscarmen/ArgoX
 
 - https://github.com/fscarmen/client_template
-
 
