@@ -137,10 +137,16 @@ if [ "$START_NOW" = "y" ] || [ "$START_NOW" = "Y" ]; then
     
     # --- 1: 清理旧容器 ---
     # 检查是否有名为 icmp9 的容器（运行中或停止状态）
-    if docker ps -a --format '{{.Names}}' | grep -q "^icmp9$"; then
+    if [ -n "$(docker ps -aq -f name="^/icmp9$")" ]; then
         warn "⚠️ 检测到已存在 icmp9 容器，正在停止并删除..."
-        docker rm -f icmp9 >/dev/null 2>&1
-        info "✅ 旧容器已清理"
+        
+        # 尝试删除，并捕获返回值
+        if docker rm -f icmp9 >/dev/null 2>&1; then
+            info "✅ 旧容器已清理"
+        else
+            error "❌ 旧容器清理失败！请检查 Docker 权限或手动执行 'docker rm -f icmp9'"
+            exit 1
+        fi
     fi
 
     # --- 2: 强制拉取最新镜像 ---
