@@ -49,6 +49,8 @@
 
 **配置隧道服务： http://localhost:58080**
 
+- ⚠️ 服务端口号必须是58080
+
 ![Cloudflare Tunnel 设置](https://github.com/user-attachments/assets/06f93523-145f-445f-98ea-22a253b85b15)
 
 ### [可选] 4.设置swap虚拟内存, 适用于低配置VPS(CPU小于1核，内存小于1G，剩余硬盘空间大于5G)
@@ -86,7 +88,7 @@ docker run -d \
   --restart always \
   --network host \
   -e ICMP9_API_KEY="[必填] icmp9 提供的 API KEY" \
-  -e ICMP9_SERVER_HOST="[选填] Cloudflared Tunnel 域名" \
+  -e ICMP9_CLOUDFLARED_DOMAIN="[选填] Cloudflared Tunnel 域名" \
   -e ICMP9_CLOUDFLARED_TOKEN="[选填] Cloudflare Tunnel Token" \
   -e ICMP9_IPV6_ONLY=False \
   -e ICMP9_CDN_DOMAIN=icook.tw \
@@ -103,17 +105,17 @@ services:
     image: nap0o/icmp9:latest
     container_name: icmp9
     restart: always
-    network_mode: "host"
+    network_mode: host
     environment:      
       # [必填] icmp9 提供的 API KEY
       - ICMP9_API_KEY=
       # [选填] Cloudflared Tunnel 域名
-      - ICMP9_SERVER_HOST=
+      - ICMP9_CLOUDFLARED_DOMAIN=
       # [选填] Cloudflare Tunnel Token
       - ICMP9_CLOUDFLARED_TOKEN=
       # [选填] VPS 是否 IPv6 Only (True/False)，默认为 False
       - ICMP9_IPV6_ONLY=False
-      # [选填] CDN 优选 IP 或域名，不填默认使用 ICMP9_SERVER_HOST
+      # [选填] CDN 优选 IP 或域名，不填默认使用 ICMP9_CLOUDFLARED_DOMAIN
       - ICMP9_CDN_DOMAIN=icook.tw
       # [选填] 起始端口，默认 39001
       - ICMP9_START_PORT=39001
@@ -135,12 +137,12 @@ docker logs icmp9
 **方法2：手动拼接（不支持cloudflare临时隧道方式部署）**
 
 ```html
-https://{ICMP9_SERVER_HOST}/{ICMP9_API_KEY}
+https://{ICMP9_CLOUDFLARED_DOMAIN}/{ICMP9_API_KEY}
 ```
 
 **其中**
 
-- {ICMP9_SERVER_HOST} 为 Cloudflare 隧道域名
+- {ICMP9_CLOUDFLARED_DOMAIN} 为 Cloudflare 隧道域名
 - {ICMP9_API_KEY} 为从 https://icmp9.com/user/dashboard 获取的 API KEY
 - 格式如： https://icmp9.nezha.pp.ua/b58828c1-4df5-4156-ee77-a889968533ae 
 
@@ -171,15 +173,15 @@ curl -v https://tunnel.icmp9.com/af
 
 <img height="300" src="https://github.com/user-attachments/assets/b1f67880-c479-48d0-a637-e23cf77f91be" /><br />
 
-#### 3.已安装warp服务VPS核对默认优先出站ip地址与icmp9.com填写的放行IP地址一致
+#### 3.已安装warp服务VPS核对默认优先出站IP地址与icmp9.com填写的放行IP地址一致
 
-在部署脚本的VPS执行以下命令
+在部署脚本的VPS执行以下命令获取默认优先出站ip地址
 
 ```bash
 curl ip.sb
 ```
 
-如果IP地址不一致，用以下方法调整
+如果与放行IP地址不一致，用以下方法调整
 
 - 方法1. 用warp脚本调整vps的默认出站IP和icmp9.com放行IP地址一致
 - 方法2. 直接卸载掉warp服务
@@ -196,7 +198,7 @@ curl ip.sb
 date
 
 ```
-修正方法：问ai关键词 “linux同步系统时间的shell命令”
+修正方法：问AI关键词 “linux同步系统时间的shell命令”
 
 ## 感谢
 

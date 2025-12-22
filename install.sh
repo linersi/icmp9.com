@@ -14,7 +14,7 @@ error() { printf "${RED}%s${NC}\n" "$1"; }
 
 printf "${GREEN}=============================================${NC}\n"
 printf "${GREEN}      ICMP9全球落地聚合节点部署脚本              ${NC}\n"
-printf "${GREEN}     支持 Debian / Ubuntu / Alpine            ${NC}\n"
+printf "${GREEN}      支持 Debian / Ubuntu / Alpine           ${NC}\n"
 printf "${GREEN}=============================================${NC}\n"
 
 # 0. 检查是否为 Root 用户
@@ -117,9 +117,9 @@ read -r MODE_INPUT
 if [ "$MODE_INPUT" = "2" ]; then
     # --- 固定隧道模式 ---
     TUNNEL_MODE="fixed"
-    while [ -z "$SERVER_HOST" ]; do
-        printf "   -> 请输入绑定域名 (SERVER_HOST) (必填): "
-        read -r SERVER_HOST
+    while [ -z "$CLOUDFLARED_DOMAIN" ]; do
+        printf "   -> 请输入绑定域名 (CLOUDFLARED_DOMAIN) (必填): "
+        read -r CLOUDFLARED_DOMAIN
     done
 
     while [ -z "$TOKEN" ]; do
@@ -129,18 +129,18 @@ if [ "$MODE_INPUT" = "2" ]; then
 else
     # --- 临时隧道模式 ---
     TUNNEL_MODE="temp"
-    SERVER_HOST="" # 留空
+    CLOUDFLARED_DOMAIN="" # 留空
     TOKEN=""       # 留空
     info "   -> 已选择临时隧道，域名将在启动后自动生成。"
 fi
 
 # IPv6 设置 (忽略大小写)
-printf "\n3. 是否仅 IPv6 (True/False) [默认: False]: "
+printf "\n3. VPS是否IPv6 Only (True/False) [默认: False]: "
 read -r IPV6_INPUT
 IPV6_ONLY=$(echo "${IPV6_INPUT:-false}" | tr '[:upper:]' '[:lower:]')
 
 # CDN 设置
-printf "4. 请输入 CDN 优选 IP 或域名 [默认: icook.tw]: "
+printf "4. 请输入Cloudflare CDN 优选IP或域名 [默认: icook.tw]: "
 read -r CDN_INPUT
 [ -z "$CDN_INPUT" ] && CDN_DOMAIN="icook.tw" || CDN_DOMAIN=$CDN_INPUT
 
@@ -158,10 +158,10 @@ services:
     image: nap0o/icmp9:latest
     container_name: icmp9
     restart: always
-    network_mode: "host"
+    network_mode: host
     environment:
       - ICMP9_API_KEY=${API_KEY}
-      - ICMP9_SERVER_HOST=${SERVER_HOST}
+      - ICMP9_CLOUDFLARED_DOMAIN=${CLOUDFLARED_DOMAIN}
       - ICMP9_CLOUDFLARED_TOKEN=${TOKEN}
       - ICMP9_IPV6_ONLY=${IPV6_ONLY}
       - ICMP9_CDN_DOMAIN=${CDN_DOMAIN}
@@ -223,7 +223,7 @@ if [ "$START_NOW" = "y" ] || [ "$START_NOW" = "Y" ]; then
     if [ "$TUNNEL_MODE" = "fixed" ]; then
         # --- 固定隧道 ---
         printf "\n${GREEN}✈️ 节点订阅地址:${NC}\n"
-        printf "${YELLOW}https://${SERVER_HOST}/${API_KEY}${NC}\n\n"
+        printf "${YELLOW}https://${CLOUDFLARED_DOMAIN}/${API_KEY}${NC}\n\n"
     else
         # --- 临时隧道 ---
         printf "\n${CYAN}⏳ 正在等待 Cloudflare 分配临时域名 (超时60秒)...${NC}\n"
