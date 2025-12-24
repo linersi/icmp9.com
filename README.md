@@ -64,12 +64,12 @@ bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.co
 
 <img height="350" alt="image" src="https://github.com/user-attachments/assets/fe436d79-25b0-4276-81b3-c4c2265fa35d" /><br /> 
 
-### [必需] 5.部署仅支持docker方式，请从以下3个部署方式选择
+### [必需] 5.Docker方式，请从以下3个部署方式选择
 
 #### [推荐] 🔥🔥方式1：使用一键交互脚本部署
 
 ```bash
-bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install.sh)  
+bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_docker.sh)  
 ```
 
 **采用cloudflare临时隧道模式执行日志**
@@ -126,7 +126,15 @@ services:
       - ./data/subscribe:/root/subscribe
 ```
 
-### [可选] 6.获取节点订阅地址
+### [必需] 6.VPS原生服务方式部署
+
+**⚠️ 警告：vps原有Nginx,Xray，Cloudflared服务配置文件将会被替换覆盖，导致原服务失效，请谨慎操作**
+
+```bash
+bash <(wget -qO- https://ghproxy.lvedong.eu.org/https://raw.githubusercontent.com/nap0o/icmp9.com/main/install_native.sh)  
+```
+
+### [可选] 7.获取节点订阅地址
 
 **方法1：通过docker日志获取**
 
@@ -150,7 +158,7 @@ https://{ICMP9_CLOUDFLARED_DOMAIN}/{ICMP9_API_KEY}
 - 格式如： https://icmp9.nezha.pp.ua/b58828c1-4df5-4156-ee77-a889968533ae 
 
 
-### [可选] 7.节点不通时自助排查方法
+### [可选] 8.节点不通时自助排查方法
 
 #### 1.确认icmp9.com放行的IP地址已生效
 
