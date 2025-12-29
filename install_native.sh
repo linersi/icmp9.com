@@ -186,7 +186,7 @@ install_cloudflared() {
 
 ICMP9="/usr/bin/icmp9"
 install_icmp9() {
-    local url="https://ghproxy.lvedong.eu.org/https://github.com/nap0o/icmp9.com/releases/download/icmp9/icmp9-native-${OS_TYPE}-${CF_ARCH}"
+    local url="https://ghproxy.lvedong.eu.org/https://github.com/nap0o/icmp9.com/releases/download/latest/icmp9-native-${OS_TYPE}-${CF_ARCH}"
 
     echo "⬇️ 正在下载/更新 icmp9..."
     wget -q -O "$ICMP9" "$url" || { echo "❌ icmp9 下载失败"; exit 1; }
