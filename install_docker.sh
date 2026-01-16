@@ -12,6 +12,12 @@ info() { printf "${GREEN}%s${NC}\n" "$1"; }
 warn() { printf "${YELLOW}%s${NC}\n" "$1"; }
 error() { printf "${RED}%s${NC}\n" "$1"; }
 
+# 注册清理函数：脚本退出或中断时自动清理临时文件
+cleanup() {
+    rm -f /tmp/icmp9_ap_list.txt
+}
+trap cleanup EXIT
+
 printf "${GREEN}=============================================${NC}\n"
 printf "${GREEN}      ICMP9全球落地聚合节点部署脚本              ${NC}\n"
 printf "${GREEN}      支持 Debian / Ubuntu / Alpine           ${NC}\n"
@@ -23,9 +29,6 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
-# ICMP9 可用落地节点 API 连通性检查
-info "📡 正在检查 ICMP9 可用落地节点 API 连接状态..."
-
 # 确保 curl 已安装
 if ! command -v curl >/dev/null 2>&1; then
     warn "⚠️ 检测到未安装 curl，正在安装..."
@@ -36,12 +39,40 @@ if ! command -v curl >/dev/null 2>&1; then
     fi
 fi
 
-API_URL="https://api.icmp9.com/online.php"
+# 确保 jq 已安装
+if ! command -v jq >/dev/null 2>&1; then
+    warn "⚠️ 检测到未安装 jq..."
+    if [ -f /etc/alpine-release ]; then
+        apk add --no-cache jq
+    else
+        apt-get update >/dev/null 2>&1 && apt-get install -y jq >/dev/null 2>&1
+    fi
+fi
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 -A "Mozilla/5.0" "$API_URL")
+# ----------------------------------------------------------------
+# 1. API 连通性预检测
+# ----------------------------------------------------------------
 
-if [ "$HTTP_CODE" = "200" ]; then
-    info "✅ 可用落地节点 API 连接正常，准备开始部署..."
+# 1.1 检查 ICMP9 网络接入点列表 API (核心前置检测)
+info "📡 正在检查 ICMP9 可用网络接入点 API 连接状态..."
+AP_URL="https://icmp9.b.4.8.f.0.7.4.0.1.0.0.2.ip6.arpa/access-points.php"
+AP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 -A "Mozilla/5.0" "$AP_URL")
+
+if [ "$AP_CODE" = "200" ]; then
+    info "✅ ICMP9 可用网络接入点 API 连接正常..."
+else
+    error "❌ ICMP9 可用网络接入点 API 连接检查未通过！"
+    error "⛔️ 脚本已停止运行。"
+    exit 1
+fi
+
+# 1.2 检查 ICMP9 可用落地节点 API
+info "📡 正在检查 ICMP9 可用落地节点 API 连接状态..."
+ONLINE_URL="https://api.icmp9.com/online.php"
+ONLINE_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 -A "Mozilla/5.0" "$ONLINE_URL")
+
+if [ "$ONLINE_CODE" = "200" ]; then
+    info "✅ 可用落地节点 API 连接正常..."
 else
     error "❌ 可用落地节点 API 连接检查未通过！"
     error "⛔️ 脚本已停止运行。"
@@ -126,8 +157,74 @@ while [ -z "$API_KEY" ]; do
     read -r API_KEY
 done
 
+# ICMP9 网络接入点选择
+printf "\n2. 请选择 ICMP9 网络接入点 (Access Point):\n"
+info "📥 正在获取ICMP9最新网络接入点列表..."
+
+# 再次获取数据 (已在前置检测中确认可连通)
+AP_JSON=$(curl -s --max-time 15 "$AP_URL")
+
+if [ -z "$AP_JSON" ]; then
+    error "❌ 获取 ICMP9 网络接入点数据为空！"
+    error "⛔️ 脚本已停止运行。"
+    exit 1
+fi
+
+# 解析并筛选 is_active=1 的节点
+ACTIVE_LIST=$(echo "$AP_JSON" | jq -r '.data.list[] | select(.is_active==1) | "\(.name)|\(.domain)"')
+
+if [ -z "$ACTIVE_LIST" ]; then
+    error "❌ 未找到任何可用的 ICMP9 网络接入点 (is_active=1)！"
+    error "⛔️ 脚本已停止运行。"
+    exit 1
+fi
+
+# 缓存到临时文件
+echo "$ACTIVE_LIST" > /tmp/icmp9_ap_list.txt
+
+# 显示列表
+i=1
+while IFS='|' read -r NAME DOMAIN; do
+    printf "   [%d] %s\n" "$i" "$NAME"
+    i=$((i+1))
+done < /tmp/icmp9_ap_list.txt
+
+# 用户选择
+TOTAL_COUNT=$((i-1))
+printf "   请选择 [1-%d] (默认: 1): " "$TOTAL_COUNT"
+read -r AP_SELECT
+[ -z "$AP_SELECT" ] && AP_SELECT=1
+
+# 校验输入是否为有效数字
+case "$AP_SELECT" in
+    ''|*[!0-9]*) 
+        warn "⚠️ 输入无效，自动尝试使用默认值 1"
+        AP_SELECT=1 
+        ;;
+esac
+
+# 提取选择的域名
+j=1
+TUNNEL_ENDPOINT=""
+while IFS='|' read -r NAME DOMAIN; do
+    if [ "$j" -eq "$AP_SELECT" ]; then
+        TUNNEL_ENDPOINT="$DOMAIN"
+        info "-> 已选择接入点: $NAME ($TUNNEL_ENDPOINT)"
+        break
+    fi
+    j=$((j+1))
+done < /tmp/icmp9_ap_list.txt
+
+# 最终校验 (如果不符合要求直接退出)
+if [ -z "$TUNNEL_ENDPOINT" ]; then
+    error "❌ 接入点选择无效或解析失败！"
+    error "⛔️ 脚本已停止运行。"
+    exit 1
+fi
+# ------------------------------------
+
 # 选择隧道模式
-printf "\n2. 请选择 Cloudflare 隧道模式:\n"
+printf "\n3. 请选择 Cloudflare 隧道模式:\n"
 printf "   [1] 临时隧道 (随机域名，无需配置)\n"
 printf "   [2] 固定隧道 (需要自备域名和Token)\n"
 printf "   请选择 [1/2] (默认: 1): "
@@ -155,22 +252,22 @@ else
 fi
 
 # IPv6 设置 (忽略大小写)
-printf "\n3. VPS是否IPv6 Only (True/False) [默认: False]: "
+printf "\n4. VPS是否IPv6 Only (True/False) [默认: False]: "
 read -r IPV6_INPUT
 IPV6_ONLY=$(echo "${IPV6_INPUT:-false}" | tr '[:upper:]' '[:lower:]')
 
 # CDN 设置
-printf "4. 请输入Cloudflare CDN优选IP或域名 [默认: icook.tw]: "
+printf "5. 请输入Cloudflare CDN优选IP或域名 [默认: icook.tw]: "
 read -r CDN_INPUT
 [ -z "$CDN_INPUT" ] && CDN_DOMAIN="icook.tw" || CDN_DOMAIN=$CDN_INPUT
 
 # 端口设置
-printf "5. 请输入Xray服务监听起始端口 [默认: 39001]: "
+printf "6. 请输入Xray服务监听起始端口 [默认: 39001]: "
 read -r PORT_INPUT
 [ -z "$PORT_INPUT" ] && START_PORT="39001" || START_PORT=$PORT_INPUT
 
 # 节点标识设置
-printf "6. 请输入节点标识 [默认: ICMP9]: "
+printf "7. 请输入节点标识 [默认: ICMP9]: "
 read -r NODE_TAG_INPUT
 [ -z "$NODE_TAG_INPUT" ] && NODE_TAG="ICMP9" || NODE_TAG=$NODE_TAG_INPUT
 
@@ -191,6 +288,7 @@ services:
     network_mode: host
     environment:
       - ICMP9_API_KEY=${API_KEY}
+      - ICMP9_TUNNEL_ENDPOINT=${TUNNEL_ENDPOINT}
       - ICMP9_CLOUDFLARED_DOMAIN=${CLOUDFLARED_DOMAIN}
       - ICMP9_CLOUDFLARED_TOKEN=${TOKEN}
       - ICMP9_IPV6_ONLY=${IPV6_ONLY}
